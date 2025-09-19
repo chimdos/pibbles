@@ -8,9 +8,36 @@ import {
   SafeAreaView,
   Modal,
   TouchableOpacity,
-  Button,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const QUIZ_DATA = [
+  {
+    question: "Qual Pibble é uma variação de pelo branco?",
+    options: ["Gmail", "Washington"],
+    correct_answer: "Gmail",
+  },
+  {
+    question: "Qual destes é um filhote de Golden Retriever?",
+    options: ["Bagel", "Geeble"],
+    correct_answer: "Bagel",
+  },
+  {
+    question: "Quem é o principal inimigo do palácio Pibble?",
+    options: ["Gus the Indifferent", "Sir Charles Barkley"],
+    correct_answer: "Sir Charles Barkley",
+  },
+  {
+    question: "Qual Pibble se multiplica por mitose?",
+    options: ["Franklin", "Waffle"],
+    correct_answer: "Franklin",
+  },
+  {
+    question: "Qual raça de Pibbles é alienígena?",
+    options: ["Jiggle", "Geeble"],
+    correct_answer: "Geeble",
+  },
+];
 
 const PIBBLES = [
   {
@@ -75,6 +102,16 @@ const PIBBLES = [
   },
 ];
 
+const NeumorphicButton = ({ onPress, title, color = '#007AFF' }) => (
+  <TouchableOpacity onPress={onPress} style={styles.actionButtonContainer}>
+    <View style={styles.shadowDark} />
+    <View style={styles.shadowLight} />
+    <View style={styles.actionButtonContent}>
+      <Text style={[styles.actionButtonText, { color }]}>{title}</Text>
+    </View>
+  </TouchableOpacity>
+);
+
 const ItemGrid = ({ item, onPress }) => (
   <TouchableOpacity style={styles.itemcontainer} onPress={onPress}>
     <View style={styles.shadowDark} />
@@ -88,7 +125,13 @@ const ItemGrid = ({ item, onPress }) => (
 
 export default function App() {
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const [quizModalVisible, setQuizModalVisible] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [isAnswered, setIsAnswered] = useState(false);
+
   const handleOpenModal = (item) => {
     setSelectedItem(item);
     setModalVisible(true);
@@ -97,10 +140,50 @@ export default function App() {
     setModalVisible(false);
     setSelectedItem(null);
   };
+
+  const restartQuiz = () => {
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setIsAnswered(false);
+  };
+
+  useEffect(() => {
+    if (!quizModalVisible) {
+      setTimeout(() => restartQuiz(), 300);
+    }
+  }, [quizModalVisible]);
+
+  const handleAnswer = (option) => {
+    if (!isAnswered) {
+      setSelectedAnswer(option);
+      setIsAnswered(true);
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < QUIZ_DATA.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setSelectedAnswer(null);
+      setIsAnswered(false);
+    } else {
+      setIsAnswered(true);
+    }
+  };
+
+  const getOptionBackgroundColor = (option) => {
+    const currentQuestion = QUIZ_DATA[currentQuestionIndex];
+    if (!isAnswered) return '#ebebeb';
+    if (option === currentQuestion.correct_answer) return '#d4edda';
+    if (option === selectedAnswer) return '#f8d7da';
+    return '#ebebeb';
+  };
+
   return (
     <SafeAreaView style={styles.safecontainer}>
       <Text style={styles.titulo}>PIBBLES</Text>
-      <Text style={styles.jogopibble}>Jogue o quiz dos Pibbles!</Text>
+      <TouchableOpacity onPress={() => setQuizModalVisible(true)}>
+        <Text style={styles.jogopibble}>Jogue o quiz dos Pibbles!</Text>
+      </TouchableOpacity>
 
       <FlatList
         data={PIBBLES}
@@ -114,23 +197,83 @@ export default function App() {
 
       {selectedItem && (
         <Modal
-          animationType="slide"
+          animationType="fade"
           transparent={true}
           visible={modalVisible}
           onRequestClose={handleCloseModal}
         >
-          <View style={styles.centeredView}>
-            <View style={styles.modalView}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.detailModalView}>
               <Text style={styles.modalTitle}>{selectedItem.nome}</Text>
               {selectedItem.imagem && (
                 <Image source={selectedItem.imagem} style={styles.modalImage} />
               )}
               <Text style={styles.modalText}>{selectedItem.detalhes}</Text>
-              <Button title="Fechar" onPress={handleCloseModal} />
+              <NeumorphicButton title="Fechar" onPress={handleCloseModal} color="#888" />
             </View>
           </View>
         </Modal>
       )}
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={quizModalVisible}
+        onRequestClose={() => setQuizModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.quizModalView}>
+            {isAnswered && currentQuestionIndex === QUIZ_DATA.length - 1 ? (
+              <>
+                <Text style={styles.modalTitle}>Fim do Quiz!</Text>
+                <Text style={styles.modalText}>Você completou o quiz dos Pibbles!</Text>
+                <NeumorphicButton title="Jogar Novamente" onPress={restartQuiz} />
+                <View style={{ height: 15 }} />
+                <NeumorphicButton title="Fechar" onPress={() => setQuizModalVisible(false)} color="#888" />
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Quiz dos Pibbles</Text>
+                <Text style={styles.quizQuestion}>
+                  {QUIZ_DATA[currentQuestionIndex]?.question}
+                </Text>
+
+                {QUIZ_DATA[currentQuestionIndex]?.options.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={styles.quizOptionContainer}
+                    onPress={() => handleAnswer(option)}
+                    disabled={isAnswered}
+                  >
+                    <View style={styles.shadowDark} />
+                    <View style={styles.shadowLight} />
+                    <View style={[
+                      styles.quizOptionContent,
+                      { backgroundColor: getOptionBackgroundColor(option) }
+                    ]}>
+                      <Text style={styles.quizOptionText}>{option}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+
+                {isAnswered ? (
+                  <View style={styles.quizButtonContainer}>
+                    {currentQuestionIndex < QUIZ_DATA.length - 1 ? (
+                      <NeumorphicButton title="Próxima Pergunta" onPress={handleNextQuestion} />
+                    ) : (
+                      <NeumorphicButton title="Ver Resultado" onPress={handleNextQuestion} />
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.quizButtonContainer}>
+                    <NeumorphicButton title="Fechar" onPress={() => setQuizModalVisible(false)} color="#888" />
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <StatusBar style="auto" />
     </SafeAreaView>
@@ -159,29 +302,29 @@ const styles = StyleSheet.create({
   },
   shadowDark: {
     position: "absolute",
-    borderRadius: 50,
+    borderRadius: 20,
     width: "100%",
     height: "100%",
     shadowColor: "#c8c8c8",
     shadowOffset: {
-      width: 20,
-      height: 20,
+      width: 10,
+      height: 10,
     },
     shadowOpacity: 1,
-    shadowRadius: 30,
+    shadowRadius: 15,
   },
   shadowLight: {
     position: "absolute",
-    borderRadius: 50,
+    borderRadius: 20,
     width: "100%",
     height: "100%",
     shadowColor: "#ffffff",
     shadowOffset: {
-      width: -20,
-      height: -20,
+      width: -10,
+      height: -10,
     },
     shadowOpacity: 1,
-    shadowRadius: 30,
+    shadowRadius: 15,
   },
   itemContent: {
     width: "100%",
@@ -211,20 +354,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
   },
-  centeredView: {
+  modalOverlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
-  modalView: {
-    maxWidth: 500,
+  detailModalView: {
+    width: "90%",
+    maxWidth: 400,
     margin: 20,
     backgroundColor: "white",
     borderRadius: 20,
-    padding: 35,
+    padding: 25,
     alignItems: "center",
-    shadowColor: "#333",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -233,10 +377,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  quizModalView: {
+    width: "90%",
+    maxWidth: 400,
+    margin: 20,
+    backgroundColor: "#ebebeb",
+    borderRadius: 20,
+    padding: 25,
+    alignItems: "center",
+  },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#333',
   },
   modalImage: {
     width: 150,
@@ -247,5 +402,64 @@ const styles = StyleSheet.create({
   modalText: {
     marginBottom: 25,
     fontSize: 16,
+    textAlign: "center",
+    color: '#555',
+  },
+  jogopibble: {
+    textAlign: "center",
+    fontSize: 18,
+    marginBottom: 20,
+    color: "#007AFF",
+    fontWeight: "bold",
+  },
+  quizQuestion: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '500',
+    color: '#333',
+  },
+  quizOptionContainer: {
+    width: '100%',
+    height: 60,
+    marginBottom: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quizOptionContent: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  quizOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  quizButtonContainer: {
+    marginTop: 20,
+    width: '100%',
+    alignItems: 'center',
+  },
+  actionButtonContainer: {
+    width: '80%',
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButtonContent: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#ebebeb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
